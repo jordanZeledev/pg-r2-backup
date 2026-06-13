@@ -151,9 +151,16 @@ def run_backup():
 
         log(f"[SUCCESS] Backup uploaded: {compressed_file_r2}")
 
+        # Scope retention to THIS instance's own backups only. Pruning by
+        # BACKUP_PREFIX alone deletes across every dataset sharing the bucket
+        # (e.g. prod + staging both at the root), so MAX_BACKUPS was counted
+        # globally and the two envs evicted each other. This instance's keys
+        # all start with "{BACKUP_PREFIX}{FILENAME_PREFIX}_", so list/prune on
+        # that exact boundary keeps each FILENAME_PREFIX isolated.
+        retention_prefix = f"{BACKUP_PREFIX}{FILENAME_PREFIX}_"
         objects = client.list_objects_v2(
             Bucket=R2_BUCKET_NAME,
-            Prefix=BACKUP_PREFIX
+            Prefix=retention_prefix
         )
 
         if "Contents" in objects:
